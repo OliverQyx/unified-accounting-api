@@ -32,8 +32,8 @@ app.get('/health', (_req, res) => {
 });
 
 // API routes
-app.use('/v1', authMiddleware, resourceRoutes);
-app.use('/v1/oauth', oauthRoutes); // OAuth routes handle their own auth per-route
+app.use('/v1/oauth', oauthRoutes);
+app.use('/v1', resourceRoutes);
 
 // Global error handler
 app.use(errorHandler);

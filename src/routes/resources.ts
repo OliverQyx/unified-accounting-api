@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { ResourceType } from '../types/dto.js';
 import { getProvider, isValidProvider } from '../providers/registry.js';
-import { providerTokenMiddleware } from '../middleware/auth.js';
+import { authMiddleware, providerTokenMiddleware } from '../middleware/auth.js';
 import { AppError } from '../middleware/error-handler.js';
 
 const router = Router();
@@ -11,7 +11,8 @@ const RESOURCE_TYPE_MAP: Record<string, ResourceType> = Object.fromEntries(
   Object.values(ResourceType).map((v) => [v, v as ResourceType])
 );
 
-// All resource routes require a provider token
+// All resource routes require API key + provider token
+router.use(authMiddleware);
 router.use(providerTokenMiddleware);
 
 // GET /:provider/:resourceType — list resources
