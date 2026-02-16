@@ -4,6 +4,7 @@ import { ResourceType } from '../types/dto.js';
 import { getProvider, isValidProvider } from '../providers/registry.js';
 import { authMiddleware, providerTokenMiddleware } from '../middleware/auth.js';
 import { AppError } from '../middleware/error-handler.js';
+import { getCurrentFinancialYear } from '../providers/briox/client.js';
 
 const router = Router();
 
@@ -80,8 +81,16 @@ router.get('/:provider/:resourceType', async (req: Request, res: Response, next:
       return;
     }
 
+    // Year-scoped resources (e.g. Briox journals) need financial year in path
+    let listEndpoint = config.listEndpoint;
+    if (config.yearScoped) {
+      const year = (req.query.financialYear as string) ||
+        await getCurrentFinancialYear(providerToken);
+      listEndpoint = `${listEndpoint}/${year}`;
+    }
+
     // Paginated list
-    const result = await entry.client.getPage(providerToken, config.listEndpoint, {
+    const result = await entry.client.getPage(providerToken, listEndpoint, {
       page,
       pageSize,
       query,
