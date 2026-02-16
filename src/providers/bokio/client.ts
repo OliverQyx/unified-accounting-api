@@ -79,11 +79,16 @@ async function getPage(
 
   const json: any = await response.json();
 
-  // Bokio paginated response: { data: [...], page, pageSize, totalPages, totalCount }
-  const data = Array.isArray(json.data) ? json.data : [];
+  // Bokio returns raw arrays for non-paginated endpoints (e.g. chart-of-accounts)
+  if (Array.isArray(json)) {
+    return { data: json, totalCount: json.length, totalPages: 1, currentPage: 1 };
+  }
+
+  // Bokio paginated response: { items: [...], totalItems, totalPages, currentPage }
+  const data = Array.isArray(json.items) ? json.items : [];
   const totalPages = json.totalPages ?? 1;
-  const totalCount = json.totalCount ?? data.length;
-  const currentPage = json.page ?? page;
+  const totalCount = json.totalItems ?? data.length;
+  const currentPage = json.currentPage ?? page;
 
   return { data, totalCount, totalPages, currentPage };
 }
