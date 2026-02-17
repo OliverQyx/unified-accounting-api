@@ -39,17 +39,30 @@ You should get a `200 OK` response.
 
 Fortnox uses the **OAuth 2.0 Authorization Code** flow. You need to authorize through a browser.
 
-### Option A: Browser-based connect flow
+### Option A: Browser-based connect flow (recommended)
 
-Open this URL in your browser (replace `YOUR_REDIRECT` with where you want the tokens sent back):
+This is the simplest approach. The API handles the entire OAuth exchange for you.
+
+Open this URL in your browser. For quick testing, use the built-in debug endpoint to display the tokens:
 
 ```
-http://localhost:3000/v1/oauth/fortnox/connect?redirect_uri=YOUR_REDIRECT
+http://localhost:3000/v1/oauth/fortnox/connect?redirect_uri=http://localhost:3000/debug/tokens
 ```
 
-This redirects you to the Fortnox login page. After you authorize, the API exchanges the code for tokens and POSTs them to your `redirect_uri` as a hidden HTML form.
+Or replace the `redirect_uri` with your own endpoint where you want the tokens sent.
 
-### Option B: Manual step-by-step
+**What happens:**
+
+1. You're redirected to the Fortnox login page
+2. After you authorize, Fortnox redirects back to the API's callback endpoint
+3. The API **automatically exchanges the code for tokens**
+4. The tokens are POSTed to your `redirect_uri` via a hidden HTML form
+
+Your `redirect_uri` will receive a POST with these fields: `access_token`, `refresh_token`, `token_type`, `expires_in`, and `provider`.
+
+### Option B: API-driven flow
+
+Use this if you want to get the authorization URL from the API (e.g. to embed in your own UI).
 
 **1. Get the authorization URL:**
 
@@ -66,29 +79,11 @@ Returns:
 }
 ```
 
-**2. Open the URL in a browser**, log in with your Fortnox account, and authorize the app. Fortnox redirects back to your `FORTNOX_REDIRECT_URI` with a `code` query parameter.
+**2. Open the URL in a browser**, log in with your Fortnox account, and authorize the app.
 
-**3. Exchange the code for tokens:**
+After authorization, Fortnox redirects to the API's callback endpoint which automatically exchanges the code for tokens and displays them on the page. Copy the `access_token` and `refresh_token`.
 
-```bash
-curl -X POST http://localhost:3000/v1/oauth/fortnox/exchange ^
-  -H "Authorization: Bearer dev-api-key-1" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"code\": \"THE_CODE_FROM_REDIRECT\"}"
-```
-
-Returns:
-
-```json
-{
-  "access_token": "eyJhbGciOi...",
-  "refresh_token": "REFRESH_TOKEN_VALUE",
-  "token_type": "bearer",
-  "expires_in": 3600
-}
-```
-
-Save both `access_token` and `refresh_token`.
+> **Note:** The difference from Option A is that you control when and how the auth URL is presented to the user. The token exchange still happens automatically via the callback.
 
 ## Step 6: Fetch data
 

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import type { ProviderOAuthHelpers, TokenResponse } from '../types.js';
 import { getFortnoxEnv } from '../../config/env.js';
 
@@ -55,9 +56,7 @@ export const fortnoxOAuth: ProviderOAuthHelpers = {
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('access_type', 'offline');
 
-    if (params.state) {
-      url.searchParams.set('state', params.state);
-    }
+    url.searchParams.set('state', params.state || crypto.randomUUID());
 
     return url.toString();
   },
