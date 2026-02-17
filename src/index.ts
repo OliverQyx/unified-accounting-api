@@ -31,6 +31,22 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Debug endpoint to display OAuth tokens (dev only)
+app.post('/debug/tokens', express.urlencoded({ extended: false }), (_req, res) => {
+  const { access_token, refresh_token, token_type, expires_in, provider } = _req.body;
+  res.setHeader('Content-Type', 'text/html');
+  res.send(`<!DOCTYPE html>
+<html><head><title>OAuth Tokens</title><style>
+  body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+  pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; }
+  h1 { font-size: 1.3em; }
+</style></head><body>
+  <h1>OAuth tokens received from ${provider || 'unknown'}</h1>
+  <pre>${JSON.stringify({ access_token, refresh_token, token_type, expires_in, provider }, null, 2)}</pre>
+  <p>Copy these values and use <code>access_token</code> as your <code>X-Provider-Token</code> header.</p>
+</body></html>`);
+});
+
 // API routes
 app.use('/v1/oauth', oauthRoutes);
 app.use('/v1', resourceRoutes);

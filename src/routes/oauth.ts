@@ -98,31 +98,26 @@ router.get('/:provider/callback', async (req: Request, res: Response, next: Next
       throw new AppError('Missing authorization code from provider', 400, 'VALIDATION_ERROR');
     }
 
-    const oauthState = req.query.state as string | undefined;
-    if (!oauthState) {
-      throw new AppError('Missing state parameter', 400, 'VALIDATION_ERROR');
-    }
-
-    // Decode the dashboard redirect_uri + webhook_url + state from the OAuth state param
-    let redirectUri: string;
-    let webhookUrl: string;
-    let dashboardState: string;
-    try {
-      const decoded = JSON.parse(Buffer.from(oauthState, 'base64url').toString('utf-8'));
-      redirectUri = decoded.redirect_uri;
-      webhookUrl = decoded.webhook_url || '';
-      dashboardState = decoded.state || '';
-    } catch {
-      throw new AppError('Invalid state parameter', 400, 'VALIDATION_ERROR');
-    }
-
-    if (!redirectUri) {
-      throw new AppError('No redirect_uri found in state', 400, 'VALIDATION_ERROR');
-    }
-
     // Exchange code for tokens
     const entry = getProvider(providerName)!;
     const tokens = await entry.oauth.exchangeCode(code);
+
+    // Decode the state param to find the redirect_uri (set by /connect flow)
+    const oauthState = req.query.state as string | undefined;
+    let redirectUri: string | undefined;
+    let webhookUrl = '';
+    let dashboardState = '';
+
+    if (oauthState) {
+      try {
+        const decoded = JSON.parse(Buffer.from(oauthState, 'base64url').toString('utf-8'));
+        redirectUri = decoded.redirect_uri;
+        webhookUrl = decoded.webhook_url || '';
+        dashboardState = decoded.state || '';
+      } catch {
+        // State wasn't from the /connect flow — fall through to direct display
+      }
+    }
 
     // If a webhook_url was provided, trigger background sync of all resources
     if (webhookUrl) {
@@ -134,18 +129,39 @@ router.get('/:provider/callback', async (req: Request, res: Response, next: Next
       });
     }
 
-    // Return an auto-submitting POST form so tokens never appear in the URL
-    const html = buildAutoPostForm(redirectUri, {
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token || '',
-      token_type: tokens.token_type,
-      expires_in: String(tokens.expires_in || ''),
-      provider: providerName,
-      state: dashboardState,
-    });
-
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
+    if (redirectUri) {
+      // Connect flow: POST tokens to the dashboard's redirect_uri
+      const html = buildAutoPostForm(redirectUri, {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token || '',
+        token_type: tokens.token_type,
+        expires_in: String(tokens.expires_in || ''),
+        provider: providerName,
+        state: dashboardState,
+      });
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+    } else {
+      // Manual flow (from /url): display tokens directly
+      const tokenJson = JSON.stringify({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token || '',
+        token_type: tokens.token_type,
+        expires_in: tokens.expires_in,
+        provider: providerName,
+      }, null, 2);
+      res.setHeader('Content-Type', 'text/html');
+      res.send(`<!DOCTYPE html>
+<html><head><title>OAuth Tokens</title><style>
+  body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+  pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; }
+  h1 { font-size: 1.3em; }
+</style></head><body>
+  <h1>OAuth tokens received from ${escapeHtml(providerName)}</h1>
+  <pre>${escapeHtml(tokenJson)}</pre>
+  <p>Copy these values and use <code>access_token</code> as your <code>X-Provider-Token</code> header.</p>
+</body></html>`);
+    }
   } catch (err) {
     next(err);
   }
