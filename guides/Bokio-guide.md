@@ -47,9 +47,9 @@ This token is your `X-Provider-Token` for all API requests.
 
 ## Step 6: Find your Company ID
 
-Bokio requires a **Company ID** passed as the `X-Company-Id` header on every data request. This is the identifier for your company in Bokio's system.
+Bokio requires a **Company ID** passed as the `X-Company-Id` header on every data request.
 
-You can find the Company ID in your Bokio account URL or in the API settings.
+You can find it in your Bokio account URL — it's the ID in the path when you're logged in (e.g. `https://app.bokio.se/company/{COMPANY_ID}/...`). You can also find it under **Settings > Integrations** in the Bokio app.
 
 ## Step 7: Fetch data
 

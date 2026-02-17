@@ -39,6 +39,8 @@ You should get a `200 OK` response.
 
 Fortnox uses the **OAuth 2.0 Authorization Code** flow. You need to authorize through a browser.
 
+> **Note:** Both options handle the token exchange automatically. The difference is how the auth URL is initiated and where the tokens are delivered.
+
 ### Option A: Browser-based connect flow (recommended)
 
 This is the simplest approach. The API handles the entire OAuth exchange for you.

@@ -177,7 +177,7 @@ curl "http://localhost:3000/v1/briox/journals?page=1&pageSize=50&includeEntries=
 
 ## Refreshing an expired token
 
-When refreshing, Briox requires both the refresh token and the current access token. Pass them separated by a pipe character (`|`):
+Briox requires both the refresh token and the current access token to issue a new token. Pass them separated by a pipe character (`|`) in the `refresh_token` field:
 
 ```bash
 curl -X POST http://localhost:3000/v1/oauth/briox/refresh ^
@@ -186,14 +186,7 @@ curl -X POST http://localhost:3000/v1/oauth/briox/refresh ^
   -d "{\"refresh_token\": \"YOUR_REFRESH_TOKEN|YOUR_ACCESS_TOKEN\"}"
 ```
 
-If you only have the refresh token, you can pass it alone (it will be used for both parameters):
-
-```bash
-curl -X POST http://localhost:3000/v1/oauth/briox/refresh ^
-  -H "Authorization: Bearer dev-api-key-1" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"refresh_token\": \"YOUR_REFRESH_TOKEN\"}"
-```
+> **Why the pipe format?** Briox's API needs both tokens to refresh, but our unified endpoint only has one `refresh_token` field. The pipe separates them: `refresh_token|access_token`. If you omit the access token, the refresh token value is used for both.
 
 ## Query parameters
 

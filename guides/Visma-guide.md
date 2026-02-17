@@ -39,7 +39,7 @@ You should get a `200 OK` response.
 
 Visma uses the **OAuth 2.0 Authorization Code** flow. You need to authorize through a browser.
 
-> **Important:** Choose **either** Option A or Option B — not both. Authorization codes are **single-use** and expire within seconds. If you use the connect flow (Option A), the code is already exchanged for you automatically. Calling `/exchange` with the same code will fail.
+> **Note:** Both options handle the token exchange automatically. The difference is how the auth URL is initiated and where the tokens are delivered.
 
 ### Option A: Browser-based connect flow (recommended)
 
@@ -61,8 +61,6 @@ Or replace the `redirect_uri` with your own endpoint where you want the tokens s
 4. The tokens are POSTed to your `redirect_uri` via a hidden HTML form
 
 Your `redirect_uri` will receive a POST with these fields: `access_token`, `refresh_token`, `token_type`, `expires_in`, and `provider`.
-
-> **Tip:** For quick local testing, you can set `redirect_uri` to any URL you control (e.g. a RequestBin or a simple local server) and grab the tokens from the POST body.
 
 ### Option B: API-driven flow
 
@@ -235,6 +233,5 @@ curl -X POST http://localhost:3000/v1/oauth/visma/revoke ^
 - **401 from Visma** — Your access token has expired. Refresh it using the refresh endpoint.
 - **403 Forbidden** — Your Visma app may not have the required scopes. The default scopes are: `ea:api offline_access ea:sales_readonly ea:accounting_readonly ea:purchase_readonly`.
 - **429 Rate limited** — The API enforces a limit of 10 requests per second to Visma. Slow down your requests.
-- **500 on `/exchange`** — Authorization codes are single-use and expire within seconds. If you used the connect flow (Option A), the code was already exchanged automatically — don't call `/exchange` again. If using Option B, make sure you exchange the code immediately after receiving it.
 - **OAuth callback error** — Visma requires HTTPS redirect URIs. Make sure you're using an ngrok tunnel or similar for local development.
 - **Redirect URI mismatch** — Make sure `VISMA_REDIRECT_URI` in your `.env` exactly matches the redirect URI registered in Visma's developer portal.

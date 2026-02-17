@@ -34,20 +34,18 @@ You should get a `200 OK` response.
 
 ## Step 5: Get an access token
 
-Björn Lundén uses **OAuth 2.0 Client Credentials** — there is no browser login. The API obtains a token directly using your client ID and secret.
-
-Call the refresh endpoint to get a token:
+Björn Lundén uses **OAuth 2.0 Client Credentials** — there is no browser login. The API obtains a token directly using your client ID and secret configured in `.env`.
 
 ```bash
 curl -X POST http://localhost:3000/v1/oauth/bjornlunden/refresh ^
   -H "Authorization: Bearer dev-api-key-1" ^
   -H "Content-Type: application/json" ^
-  -d "{\"refresh_token\": \"ignored\"}"
+  -d "{\"refresh_token\": \"_\"}"
 ```
 
-The `refresh_token` value in the body is ignored — the API always performs a fresh client credentials request.
+> **Why `/refresh`?** Björn Lundén doesn't have a separate token exchange — every token request uses the client credentials grant. The `refresh_token` body field is required by the endpoint but its value is ignored.
 
-This returns something like:
+Returns:
 
 ```json
 {
