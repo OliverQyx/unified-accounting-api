@@ -62,7 +62,7 @@ Since this API is stateless, the consumer is responsible for:
 ## 2. Project Structure
 
 ```
-unified-erp-api/
+unified-accounting-api/
 ├── src/
 │   ├── index.ts                          # Express app entry point
 │   ├── config/
