@@ -298,11 +298,21 @@ export interface CompanyInformationDto {
   _raw?: unknown;
 }
 
-// Utility: derive account type from BAS plan
+/**
+ * Derive account type from the Swedish BAS plan account number ranges.
+ *
+ * BAS plan ranges (used by Fortnox, Visma, Briox, Bokio, Björn Lundén):
+ *   1000–1999  Tillgångar (Assets)
+ *   2000–2099  Eget kapital (Equity)
+ *   2100–2999  Skulder (Liabilities)
+ *   3000–3999  Intäkter (Revenue)
+ *   4000–8999  Kostnader (Expenses)
+ */
 export function deriveAccountType(accountNumber: string | number): AccountType {
   const num = typeof accountNumber === 'string' ? parseInt(accountNumber, 10) : accountNumber;
   if (num >= 1000 && num <= 1999) return 'asset';
-  if (num >= 2000 && num <= 2999) return 'liability';
+  if (num >= 2000 && num <= 2099) return 'equity';
+  if (num >= 2100 && num <= 2999) return 'liability';
   if (num >= 3000 && num <= 3999) return 'revenue';
   if (num >= 4000 && num <= 8999) return 'expense';
   return 'other';

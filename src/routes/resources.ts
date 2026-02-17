@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { ResourceType } from '../types/dto.js';
 import { getProvider, isValidProvider } from '../providers/registry.js';
 import { authMiddleware, providerTokenMiddleware } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
 import { AppError } from '../middleware/error-handler.js';
 import { getCurrentFinancialYear } from '../providers/briox/client.js';
 
@@ -16,8 +18,19 @@ const RESOURCE_TYPE_MAP: Record<string, ResourceType> = Object.fromEntries(
 router.use(authMiddleware);
 router.use(providerTokenMiddleware);
 
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(500).default(100),
+  includeEntries: z.string().optional(),
+  includeBalances: z.string().optional(),
+  lastModified: z.string().optional(),
+  modifiedSince: z.string().optional(),
+  financialYear: z.string().optional(),
+  query: z.string().optional(),
+}).passthrough();
+
 // GET /:provider/:resourceType — list resources
-router.get('/:provider/:resourceType', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/:provider/:resourceType', validate(listQuerySchema, 'query'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const providerName = req.params.provider as string;
     const resourceTypeSlug = req.params.resourceType as string;
@@ -54,9 +67,9 @@ router.get('/:provider/:resourceType', async (req: Request, res: Response, next:
       );
     }
 
-    // Parse query params
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 100;
+    // Query params (validated and coerced by Zod middleware)
+    const page = req.query.page as unknown as number;
+    const pageSize = req.query.pageSize as unknown as number;
     const includeEntries = req.query.includeEntries !== 'false';
     const includeBalances = req.query.includeBalances === 'true';
 
@@ -101,9 +114,10 @@ router.get('/:provider/:resourceType', async (req: Request, res: Response, next:
     // Map raw items to canonical DTOs
     const data = result.data.map(config.mapper);
 
-    // Journal entry hydration (Fortnox, Briox)
+    // Journal entry hydration (Fortnox, Briox, Björn Lundén)
     if (config.needsEntryHydration && includeEntries && data.length > 0) {
-      const BATCH_SIZE = 5;
+      const BATCH_SIZE = 10;
+      const hydrationStart = Date.now();
       for (let i = 0; i < result.data.length; i += BATCH_SIZE) {
         const batch = result.data.slice(i, i + BATCH_SIZE);
         const details = await Promise.all(
@@ -127,6 +141,12 @@ router.get('/:provider/:resourceType', async (req: Request, res: Response, next:
                 detailPath = `/journal/${year}/${series}/${id}`;
               }
 
+              // Björn Lundén journals: /journal/entry/{entityId}
+              if (providerName === 'bjornlunden' && resourceType === ResourceType.Journals) {
+                const entityId = item.entityId || id;
+                detailPath = `/journal/entry/${entityId}`;
+              }
+
               const detail = await entry.client.getDetail(providerToken, detailPath, {
                 detailKey: config.detailKey,
                 companyId,
@@ -145,6 +165,10 @@ router.get('/:provider/:resourceType', async (req: Request, res: Response, next:
         for (let j = 0; j < details.length; j++) {
           data[i + j] = details[j];
         }
+      }
+      const hydrationMs = Date.now() - hydrationStart;
+      if (hydrationMs > 5000) {
+        console.warn(`Slow hydration: ${providerName}/${resourceTypeSlug} took ${hydrationMs}ms for ${result.data.length} items`);
       }
     }
 

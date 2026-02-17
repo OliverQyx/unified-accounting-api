@@ -3,25 +3,15 @@ import type { Request, Response, NextFunction } from 'express';
 import { getProvider, isValidProvider } from '../providers/registry.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { AppError } from '../middleware/error-handler.js';
+import { rateLimitMiddleware } from '../middleware/rate-limit.js';
 import { triggerBackgroundSync } from '../utils/sync.js';
 import type { ProviderName } from '../providers/types.js';
 
 const router = Router();
 
-// ─── Browser-facing routes (no API key auth) ─────────────────────────
+// Rate limit all OAuth routes: 20 requests per minute per IP
+router.use(rateLimitMiddleware({ maxRequests: 20, windowMs: 60_000 }));
 
-/**
- * GET /oauth/:provider/connect
- *
- * Dashboard redirects the user here. We build the provider's auth URL
- * and redirect the browser to the provider's login page.
- *
- * Query params:
- *   - redirect_uri (required) — where to send the user after OAuth completes
- *   - webhook_url (optional) — where to POST all fetched data after connect
- *   - state (optional) — CSRF token from the dashboard
- *   - scopes (optional) — override default scopes
- */
 router.get('/:provider/connect', (req: Request, res: Response, next: NextFunction) => {
   try {
     const providerName = req.params.provider as string;

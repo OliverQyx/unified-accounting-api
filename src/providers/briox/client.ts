@@ -51,12 +51,23 @@ async function brioxFetch(
   return response;
 }
 
+// Cache for financial year lookups — avoids repeated API calls per token
+const financialYearCache = new Map<string, { year: string; expiresAt: number }>();
+const FINANCIAL_YEAR_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 /**
  * Fetch the current (active) financial year from Briox.
  * Returns the financial year ID (e.g. "10") by finding the year whose
  * date range contains today's date. Falls back to the last year in the list.
+ *
+ * Results are cached per access token for 10 minutes.
  */
 export async function getCurrentFinancialYear(accessToken: string): Promise<string> {
+  const cached = financialYearCache.get(accessToken);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.year;
+  }
+
   const response = await withRetry(
     () => brioxFetch(accessToken, '/financialyear'),
     RETRY_CONFIG,
@@ -82,7 +93,14 @@ export async function getCurrentFinancialYear(accessToken: string): Promise<stri
     return y.fromdate <= today && today <= y.todate;
   });
 
-  return active?.id ?? years[years.length - 1].id;
+  const year = active?.id ?? years[years.length - 1].id;
+
+  financialYearCache.set(accessToken, {
+    year,
+    expiresAt: Date.now() + FINANCIAL_YEAR_CACHE_TTL,
+  });
+
+  return year;
 }
 
 export const brioxClient: ProviderClient = {

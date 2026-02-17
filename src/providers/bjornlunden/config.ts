@@ -45,10 +45,11 @@ export const bjornLundenConfigs: Partial<Record<ResourceType, ProviderResourceCo
 
   [ResourceType.Journals]: {
     listEndpoint: '/journal/entry/batch',
-    detailEndpoint: '/journal/entry',
+    detailEndpoint: '/journal/entry/{id}',
     idField: 'entityId',
     mapper: mapJournal,
     paginated: true,
+    needsEntryHydration: true,
   },
 
   [ResourceType.AccountingAccounts]: {
