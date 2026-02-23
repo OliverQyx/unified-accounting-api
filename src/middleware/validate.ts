@@ -16,8 +16,13 @@ export function validate(schema: z.ZodType, location: RequestLocation = 'body') 
       return;
     }
 
-    // Replace with parsed/coerced values
-    (req as any)[location] = result.data;
+    // Replace with parsed/coerced values.
+    // Express 5 makes req.query a read-only getter, so use defineProperty.
+    if (location === 'query') {
+      Object.defineProperty(req, 'query', { value: result.data, configurable: true });
+    } else {
+      (req as any)[location] = result.data;
+    }
     next();
   };
 }
