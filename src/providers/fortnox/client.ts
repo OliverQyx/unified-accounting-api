@@ -3,6 +3,7 @@ import { RateLimiter } from '../rate-limiter.js';
 import { ProviderError, withRetry, type RetryConfig } from '../../utils/retry.js';
 
 const BASE_URL = 'https://api.fortnox.se/3';
+const ATTACHMENTS_BASE_URL = 'https://api.fortnox.se/api/fileattachments/attachments-v1';
 const PROVIDER_NAME = 'fortnox';
 
 const RATE_LIMIT_CONFIG = {
@@ -74,6 +75,100 @@ async function request(
     }
 
     return response.json();
+  }, RETRY_CONFIG);
+}
+
+export interface FortnoxAttachment {
+  fileId: string;
+  name: string;
+  mimeType: string;
+}
+
+export async function getFortnoxAttachments(
+  token: string,
+  entityId: string,
+  entityType: string,
+): Promise<FortnoxAttachment[]> {
+  await rateLimiter.acquire();
+
+  const url = new URL(ATTACHMENTS_BASE_URL + '/');
+  url.searchParams.set('entityid', entityId);
+  url.searchParams.set('entitytype', entityType);
+
+  return withRetry(async () => {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const retryAfterHeader = response.headers.get('Retry-After');
+      const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
+      let message: string;
+      try {
+        const errorBody: any = await response.json();
+        message = errorBody?.message || response.statusText;
+      } catch {
+        message = response.statusText;
+      }
+      throw new ProviderError(
+        `Fortnox attachments API error (${response.status}): ${message}`,
+        response.status,
+        PROVIDER_NAME,
+        Number.isNaN(retryAfter as number) ? undefined : retryAfter,
+      );
+    }
+
+    const body: any = await response.json();
+    return (body ?? []) as FortnoxAttachment[];
+  }, RETRY_CONFIG);
+}
+
+export async function downloadFortnoxFile(
+  token: string,
+  fileId: string,
+): Promise<{ buffer: ArrayBuffer; contentType: string; filename: string }> {
+  await rateLimiter.acquire();
+
+  const url = new URL(`${BASE_URL}/archive`);
+  url.searchParams.set('fileid', fileId);
+
+  return withRetry(async () => {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const retryAfterHeader = response.headers.get('Retry-After');
+      const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
+      let message: string;
+      try {
+        const errorBody: any = await response.json();
+        message = errorBody?.ErrorInformation?.Message || errorBody?.message || response.statusText;
+      } catch {
+        message = response.statusText;
+      }
+      throw new ProviderError(
+        `Fortnox archive API error (${response.status}): ${message}`,
+        response.status,
+        PROVIDER_NAME,
+        Number.isNaN(retryAfter as number) ? undefined : retryAfter,
+      );
+    }
+
+    const contentType = response.headers.get('Content-Type') ?? 'application/octet-stream';
+    const disposition = response.headers.get('Content-Disposition') ?? '';
+    const filenameMatch = disposition.match(/filename="?([^";\r\n]+)"?/i);
+    const filename = filenameMatch ? filenameMatch[1] : `file-${fileId}.pdf`;
+    const buffer = await response.arrayBuffer();
+
+    return { buffer, contentType, filename };
   }, RETRY_CONFIG);
 }
 

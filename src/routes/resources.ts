@@ -7,6 +7,7 @@ import { authMiddleware, providerTokenMiddleware } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { AppError } from '../middleware/error-handler.js';
 import { getCurrentFinancialYear } from '../providers/briox/client.js';
+import { getFortnoxAttachments, downloadFortnoxFile } from '../providers/fortnox/client.js';
 
 const router = Router();
 
@@ -180,6 +181,48 @@ router.get('/:provider/:resourceType', validate(listQuerySchema, 'query'), async
       totalPages: result.totalPages,
       hasMore: result.currentPage < result.totalPages,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /:provider/:resourceType/:id/pdf — download PDF attachment(s) for a resource
+router.get('/:provider/:resourceType/:id/pdf', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const providerName = req.params.provider as string;
+    const resourceTypeSlug = req.params.resourceType as string;
+    const id = req.params.id as string;
+
+    if (providerName !== 'fortnox') {
+      throw new AppError(`PDF attachment fetching is not supported for provider '${providerName}'`, 400, 'UNSUPPORTED_OPERATION');
+    }
+
+    if (resourceTypeSlug !== 'salesinvoices') {
+      throw new AppError(`PDF attachment fetching is not supported for resource type '${resourceTypeSlug}'`, 400, 'UNSUPPORTED_OPERATION');
+    }
+
+    const providerToken = req.headers['x-provider-token'] as string;
+
+    const attachments = await getFortnoxAttachments(providerToken, id, 'F');
+
+    if (!attachments || attachments.length === 0) {
+      res.json({ data: [] });
+      return;
+    }
+
+    const files = await Promise.all(
+      attachments.map(async (attachment) => {
+        const { buffer, contentType, filename } = await downloadFortnoxFile(providerToken, attachment.fileId);
+        return {
+          fileId: attachment.fileId,
+          filename,
+          contentType,
+          base64: Buffer.from(buffer).toString('base64'),
+        };
+      })
+    );
+
+    res.json({ data: files });
   } catch (err) {
     next(err);
   }
