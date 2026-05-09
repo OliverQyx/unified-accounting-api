@@ -8,6 +8,7 @@ import {
   mapJournal,
   mapAccount,
   mapCompanyInformation,
+  mapFinancialYear,
 } from './mapper.js';
 
 export const fortnoxResourceConfigs: Partial<Record<ResourceType, ProviderResourceConfig>> = {
@@ -71,6 +72,15 @@ export const fortnoxResourceConfigs: Partial<Record<ResourceType, ProviderResour
     mapper: mapAccount,
     detailMapper: mapAccount,
     paginated: true,
+  },
+  [ResourceType.AccountingPeriods]: {
+    listEndpoint: '/financialyears',
+    listKey: 'FinancialYears',
+    detailEndpoint: '/financialyears/{id}',
+    detailKey: 'FinancialYear',
+    idField: 'Id',
+    mapper: mapFinancialYear,
+    paginated: false,
   },
   [ResourceType.CompanyInformation]: {
     listEndpoint: '/companyinformation',

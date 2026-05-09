@@ -453,6 +453,14 @@ export function mapAccount(raw: Record<string, unknown>): AccountingAccountDto {
 // Company Information
 // ---------------------------------------------------------------------------
 
+export function mapFinancialYear(raw: Record<string, unknown>): { id: number; fromDate: string; toDate: string } {
+  return {
+    id: raw.Id as number,
+    fromDate: raw.FromDate as string,
+    toDate: raw.ToDate as string,
+  };
+}
+
 export function mapCompanyInformation(raw: Record<string, unknown>): CompanyInformationDto {
   const address: PostalAddress = {
     streetName: str(raw.Address) || undefined,
