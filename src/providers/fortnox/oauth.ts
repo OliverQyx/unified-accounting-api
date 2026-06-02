@@ -6,7 +6,7 @@ const AUTH_URL = 'https://apps.fortnox.se/oauth-v1/auth';
 const TOKEN_URL = 'https://apps.fortnox.se/oauth-v1/token';
 const REVOKE_URL = 'https://apps.fortnox.se/oauth-v1/revoke';
 
-const DEFAULT_SCOPES = 'companyinformation bookkeeping supplierinvoice';
+const DEFAULT_SCOPES = 'companyinformation bookkeeping';
 
 function buildBasicAuth(): string {
   const { FORTNOX_CLIENT_ID, FORTNOX_CLIENT_SECRET } = getFortnoxEnv();
